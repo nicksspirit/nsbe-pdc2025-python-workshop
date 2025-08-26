@@ -24,7 +24,7 @@ npm-debug.log
 .github/
 
 # Workshop
-**/browser_data/*
+**/.browser_data/*
 **/data/*
 !**/data/.gitkeep
 **/logs/*
