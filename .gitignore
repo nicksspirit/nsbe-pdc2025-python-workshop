@@ -11,3 +11,14 @@ wheels/
 
 # MacOS
 .DS_Store
+
+# A.I
+.gemini/
+.cursor/
+.github/
+
+# Workshop
+**/data/*
+!**/data/.gitkeep
+*/logs/*
+!**/logs/.gitkeep
