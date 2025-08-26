@@ -29,3 +29,4 @@ npm-debug.log
 !**/data/.gitkeep
 **/logs/*
 !**/logs/.gitkeep
+**/app/*_app.py
