@@ -143,33 +143,27 @@ class StartTunnelBtn:
 
         display(start_button, self.output_widget)
 
-    def set_port(self, port: int):
-        """Set the port to use for the tunnel."""
-        self.port = port
-
     def _poll_for_tunnel_url(self, log_path: str, timeout: int = 30) -> str | None:
         """Poll the log file for the tunnel URL with timeout."""
         start_time = time.time()
         log_file_path = Path(log_path)
-        
+
         while time.time() - start_time < timeout:
             try:
                 if log_file_path.exists():
                     log_content = log_file_path.read_text()
-                    url_match = re.search(
-                        r"LINK: (https://.*\.trycloudflare\.com)", log_content
-                    )
-                    
+                    url_match = re.search(r"LINK: (https://.*\.trycloudflare\.com)", log_content)
+
                     if url_match:
                         return url_match.group(1)
-                
+
                 # Wait a bit before checking again
                 time.sleep(1)
-                
+
             except Exception as e:
                 self.output_widget.append_stderr(f"\n⚠️ Error reading log file: {e}")
                 break
-        
+
         return None
 
     def _start_tunnel(self, btn):
@@ -198,7 +192,7 @@ class StartTunnelBtn:
 
                 # Poll the log file for the tunnel URL
                 tunnel_url = self._poll_for_tunnel_url(tunnel_log_path)
-                
+
                 if tunnel_url:
                     self.output_widget.append_stdout(f"\n🔗 Tunnel URL: {tunnel_url}")
                 else:
@@ -211,8 +205,9 @@ class StartTunnelBtn:
 class StopTunnelBtn:
     """Button to stop a Cloudflare tunnel."""
 
-    def __init__(self, output_widget: Output | None = None):
+    def __init__(self, port: int | None = None, output_widget: Output | None = None):
         self.output_widget = Output() if output_widget is None else output_widget
+        self.port = port
 
     def render(self):
         stop_button = Button(description="Stop Cloudflare Tunnel", button_style="danger")
@@ -226,7 +221,7 @@ class StopTunnelBtn:
 
             try:
                 # Kill any processes running the tunnel.js script
-                get_ipython().run_cell_magic("bash", "", "pkill -f 'node tunnel.js'")
+                get_ipython().run_cell_magic("bash", "", f"pkill -f node tunnel.js {self.port}")
                 self.output_widget.append_stdout("\n🛑 Cloudflare tunnel stopped.")
             except subprocess.CalledProcessError as e:
                 if e.returncode == 1:
@@ -270,7 +265,7 @@ class TunnelControlBtn:
 
         # Create instances of tunnel button classes
         self.start_tunnel = StartTunnelBtn(self.port, self.output_widget)
-        self.stop_tunnel = StopTunnelBtn(self.output_widget)
+        self.stop_tunnel = StopTunnelBtn(self.port, self.output_widget)
 
     def render(self):
         # Create buttons for tunnel control
@@ -285,8 +280,3 @@ class TunnelControlBtn:
         buttons = HBox([start_button, stop_button])
 
         display(buttons, self.output_widget)
-
-    def set_port(self, port: int):
-        """Update the port for the tunnel."""
-        self.port = port
-        self.start_tunnel.set_port(port)
