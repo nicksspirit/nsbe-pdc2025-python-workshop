@@ -31,3 +31,4 @@ npm-debug.log
 **/logs/*
 !**/logs/.gitkeep
 **/app/*_app.py
+*.env
