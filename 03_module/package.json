@@ -1,0 +1,10 @@
+{
+  "type": "module",
+  "dependencies": {
+    "cloudflared": "^0.7.1",
+    "localtunnel": "^1.8.3"
+  },
+  "scripts": {
+    "tunnel": "FORCE_COLOR=0 node tunnel.js"
+  }
+}
