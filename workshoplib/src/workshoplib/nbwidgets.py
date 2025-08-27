@@ -1,8 +1,8 @@
-import os
 import re
 import subprocess
 import time
 import urllib
+from pathlib import Path
 
 from IPython import get_ipython
 from IPython.display import display
@@ -78,17 +78,16 @@ class StartStreamlitAppBtn:
     def _extract_port_from_logs(self):
         """Extract the port number from the Streamlit log file."""
 
-        log_path = f"./app/logs/{self.app_name}.log"
+        log_path = Path(f"./app/logs/{self.app_name}.log")
 
-        if not os.path.exists(log_path):
+        if not log_path.exists():
             return None
 
         try:
             # Wait a bit to ensure log file is populated
             time.sleep(2)
 
-            with open(log_path, "r") as log_file:
-                log_content = log_file.read()
+            log_content = log_path.read_text()
 
             # Look for the local URL pattern and extract port
             match = re.search(r"Local URL: http://localhost:(\d+)", log_content)
@@ -148,6 +147,31 @@ class StartTunnelBtn:
         """Set the port to use for the tunnel."""
         self.port = port
 
+    def _poll_for_tunnel_url(self, log_path: str, timeout: int = 30) -> str | None:
+        """Poll the log file for the tunnel URL with timeout."""
+        start_time = time.time()
+        log_file_path = Path(log_path)
+        
+        while time.time() - start_time < timeout:
+            try:
+                if log_file_path.exists():
+                    log_content = log_file_path.read_text()
+                    url_match = re.search(
+                        r"LINK: (https://.*\.trycloudflare\.com)", log_content
+                    )
+                    
+                    if url_match:
+                        return url_match.group(1)
+                
+                # Wait a bit before checking again
+                time.sleep(1)
+                
+            except Exception as e:
+                self.output_widget.append_stderr(f"\n⚠️ Error reading log file: {e}")
+                break
+        
+        return None
+
     def _start_tunnel(self, btn):
         with self.output_widget:
             self.output_widget.clear_output()
@@ -172,21 +196,12 @@ class StartTunnelBtn:
                     f"\n🔍 Check {tunnel_log_path} for the tunnel URL."
                 )
 
-                # Wait a moment to allow the tunnel to initialize
-                time.sleep(3)
-
-                # Try to extract the tunnel URL from the log file
-                try:
-                    with open(tunnel_log_path, "r") as log_file:
-                        log_content = log_file.read()
-                        url_match = re.search(
-                            r"LINK: (https://.*\.trycloudflare\.com)", log_content
-                        )
-
-                        if url_match:
-                            tunnel_url = url_match.group(1)
-                            self.output_widget.append_stdout(f"\n🔗 Tunnel URL: {tunnel_url}")
-                except Exception:
+                # Poll the log file for the tunnel URL
+                tunnel_url = self._poll_for_tunnel_url(tunnel_log_path)
+                
+                if tunnel_url:
+                    self.output_widget.append_stdout(f"\n🔗 Tunnel URL: {tunnel_url}")
+                else:
                     self.output_widget.append_stdout("\n⚠️ Could not extract tunnel URL from logs.")
 
             except subprocess.CalledProcessError as e:
