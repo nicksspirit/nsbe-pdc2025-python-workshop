@@ -37,8 +37,9 @@ class ShowPasswordBtn:
 
 
 class StopStreamlitAppBtn:
-    def __init__(self, app_name: str, output_widget: Output | None = None):
+    def __init__(self, app_name: str, port: int | None = None, output_widget: Output | None = None):
         self.app_name = app_name
+        self.custom_port = port
         self.output_widget = Output() if output_widget is None else output_widget
 
     def render(self):
@@ -52,9 +53,18 @@ class StopStreamlitAppBtn:
             self.output_widget.clear_output()
 
             try:
-                get_ipython().run_cell_magic(
-                    "bash", "", f'pkill -f "streamlit run app/{self.app_name}.py"'
-                )
+                if self.custom_port:
+                    # Kill specific port instance
+                    get_ipython().run_cell_magic(
+                        "bash",
+                        "",
+                        f"pkill -f streamlit run app/{self.app_name}.py --server.port {self.custom_port}",
+                    )
+                else:
+                    # Kill any instance of this app
+                    get_ipython().run_cell_magic(
+                        "bash", "", f"pkill -f streamlit run app/{self.app_name}.py"
+                    )
                 self.output_widget.append_stdout("\n🛑 Streamlit app stopped.")
             except subprocess.CalledProcessError as e:
                 if e.returncode == 1:
@@ -64,10 +74,11 @@ class StopStreamlitAppBtn:
 
 
 class StartStreamlitAppBtn:
-    def __init__(self, app_name: str, output_widget: Output | None = None):
+    def __init__(self, app_name: str, port: int | None = None, output_widget: Output | None = None):
         self.app_name = app_name
+        self.custom_port = port  # User-specified port (if any)
         self.output_widget = Output() if output_widget is None else output_widget
-        self.port = None  # Will store the port number once extracted
+        self.port = port  # Will store the actual port number (custom or auto-detected)
         self.is_running = False  # Track if Streamlit is currently running
 
     def render(self):
@@ -79,9 +90,18 @@ class StartStreamlitAppBtn:
     def _is_streamlit_running(self) -> bool:
         """Check if Streamlit process is currently running for this app."""
         try:
-            get_ipython().run_cell_magic(
-                "bash", "", f'pgrep -f "streamlit run app/{self.app_name}.py"'
-            )
+            if self.custom_port:
+                # Check for specific port if custom port is specified
+                get_ipython().run_cell_magic(
+                    "bash",
+                    "",
+                    f"pgrep -f streamlit run app/{self.app_name}.py --server.port {self.custom_port}",
+                )
+            else:
+                # Check for any instance of this app
+                get_ipython().run_cell_magic(
+                    "bash", "", f"pgrep -f streamlit run app/{self.app_name}.py"
+                )
             return True  # If pgrep finds a process, it returns success
         except subprocess.CalledProcessError:
             return False  # If pgrep finds nothing, it returns non-zero exit code
@@ -132,14 +152,23 @@ class StartStreamlitAppBtn:
                 self.is_running = True  # Update state in case it was detected via process check
                 return
 
-            self.output_widget.append_stdout("\n🚀 Starting Streamlit app...")
+            if self.custom_port:
+                self.output_widget.append_stdout(
+                    f"\n🚀 Starting Streamlit app on port {self.custom_port}..."
+                )
+            else:
+                self.output_widget.append_stdout("\n🚀 Starting Streamlit app...")
             self.is_running = True  # Set state before starting
 
             streamlit_run_cmd = [
                 f"uv run streamlit run app/{self.app_name}.py",
                 "--server.headless true",
-                f"&>./app/logs/{self.app_name}.log &",
             ]
+
+            if self.custom_port:
+                streamlit_run_cmd.append(f"--server.port {self.custom_port}")
+
+            streamlit_run_cmd.append(f"&>./app/logs/{self.app_name}.log &")
 
             try:
                 get_ipython().run_cell_magic("bash", "", " ".join(streamlit_run_cmd))
@@ -148,12 +177,18 @@ class StartStreamlitAppBtn:
                 # Give Streamlit a moment to start
                 time.sleep(5)
 
-                # Extract and store the port number
-                port = self._extract_port_from_logs()
-                if port:
-                    self.output_widget.append_stdout(f"\n🔌 Streamlit running on port: {port}")
+                # Extract and store the port number (or use custom port)
+                if self.custom_port:
+                    self.port = self.custom_port
+                    self.output_widget.append_stdout(
+                        f"\n🔌 Streamlit running on port: {self.custom_port}"
+                    )
                 else:
-                    self.output_widget.append_stdout("\n⚠️ Could not determine Streamlit port")
+                    port = self._extract_port_from_logs()
+                    if port:
+                        self.output_widget.append_stdout(f"\n🔌 Streamlit running on port: {port}")
+                    else:
+                        self.output_widget.append_stdout("\n⚠️ Could not determine Streamlit port")
 
             except subprocess.CalledProcessError as e:
                 self.output_widget.append_stderr(f"\n❌ An error occurred: {e}")
@@ -311,13 +346,14 @@ class StopTunnelBtn:
 class StreamlitControlBtn:
     """A widget that displays both Start and Stop Streamlit buttons side by side by reusing existing button classes."""
 
-    def __init__(self, app_name: str):
+    def __init__(self, app_name: str, port: int | None = None):
         self.output_widget = Output()
         self.app_name = app_name
+        self.port = port
 
         # Create instances of existing button classes
-        self.start_app = StartStreamlitAppBtn(self.app_name, self.output_widget)
-        self.stop_app = StopStreamlitAppBtn(self.app_name, self.output_widget)
+        self.start_app = StartStreamlitAppBtn(self.app_name, port, self.output_widget)
+        self.stop_app = StopStreamlitAppBtn(self.app_name, port, self.output_widget)
 
     def render(self):
         # Create buttons using the existing button classes
