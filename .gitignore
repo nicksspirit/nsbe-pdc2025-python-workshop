@@ -5,9 +5,28 @@ build/
 dist/
 wheels/
 *.egg-info
+*.sqlite
+
+# Nodejs
+node_modules/
+package-lock.json
+npm-debug.log
 
 # Virtual environments
 .venv
 
 # MacOS
 .DS_Store
+
+# A.I
+.gemini/
+.cursor/
+.github/
+
+# Workshop
+**/.browser_data/*
+**/data/*
+!**/data/.gitkeep
+**/logs/*
+!**/logs/.gitkeep
+**/app/*_app.py
