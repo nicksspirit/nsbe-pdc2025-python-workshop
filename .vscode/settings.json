@@ -1,0 +1,13 @@
+{
+    "jupyter.widgetScriptSources": [
+        "jsdelivr.com",
+        "unpkg.com"
+    ],
+    "mypy-type-checker.preferDaemon": true,
+    "mypy-type-checker.args": [
+        "--config-file=./pyproject.toml"
+    ],
+    "python.analysis.extraPaths": [
+        "./workshoplib/src"
+    ],
+}
