@@ -68,6 +68,7 @@ class StartStreamlitAppBtn:
         self.app_name = app_name
         self.output_widget = Output() if output_widget is None else output_widget
         self.port = None  # Will store the port number once extracted
+        self.is_running = False  # Track if Streamlit is currently running
 
     def render(self):
         start_button = Button(description="Start Streamlit App and Tunnel", button_style="success")
@@ -75,7 +76,17 @@ class StartStreamlitAppBtn:
 
         display(start_button, self.output_widget)
 
-    def _extract_port_from_logs(self):
+    def _is_streamlit_running(self) -> bool:
+        """Check if Streamlit process is currently running for this app."""
+        try:
+            get_ipython().run_cell_magic(
+                "bash", "", f'pgrep -f "streamlit run app/{self.app_name}.py"'
+            )
+            return True  # If pgrep finds a process, it returns success
+        except subprocess.CalledProcessError:
+            return False  # If pgrep finds nothing, it returns non-zero exit code
+
+    def _extract_port_from_logs(self, wait_for_logs: bool = True):
         """Extract the port number from the Streamlit log file."""
 
         log_path = Path(f"./app/logs/{self.app_name}.log")
@@ -84,8 +95,9 @@ class StartStreamlitAppBtn:
             return None
 
         try:
-            # Wait a bit to ensure log file is populated
-            time.sleep(2)
+            # Only wait if we're expecting new logs (when starting)
+            if wait_for_logs:
+                time.sleep(2)
 
             log_content = log_path.read_text()
 
@@ -103,7 +115,25 @@ class StartStreamlitAppBtn:
     def _start_streamlit(self, btn):
         with self.output_widget:
             self.output_widget.clear_output()
+
+            # Check if already running
+            if self.is_running or self._is_streamlit_running():
+                # Try to get the current port
+                current_port = self._extract_port_from_logs(wait_for_logs=False)
+                if current_port:
+                    self.output_widget.append_stdout(
+                        f"\n⚠️ Streamlit app '{self.app_name}' is already running on port {current_port}!\n"
+                        f"🔗 Local URL: http://localhost:{current_port}"
+                    )
+                else:
+                    self.output_widget.append_stdout(
+                        f"\n⚠️ Streamlit app '{self.app_name}' is already running!"
+                    )
+                self.is_running = True  # Update state in case it was detected via process check
+                return
+
             self.output_widget.append_stdout("\n🚀 Starting Streamlit app...")
+            self.is_running = True  # Set state before starting
 
             streamlit_run_cmd = [
                 f"uv run streamlit run app/{self.app_name}.py",
@@ -127,6 +157,7 @@ class StartStreamlitAppBtn:
 
             except subprocess.CalledProcessError as e:
                 self.output_widget.append_stderr(f"\n❌ An error occurred: {e}")
+                self.is_running = False  # Reset state on failure
 
 
 class StartTunnelBtn:
@@ -136,12 +167,41 @@ class StartTunnelBtn:
         self.port = port  # Can be set directly or obtained from a Streamlit app
         self.output_widget = Output() if output_widget is None else output_widget
         self.tunnel_process = None
+        self.is_running = False  # Track if tunnel is currently running
 
     def render(self):
         start_button = Button(description="Start Cloudflare Tunnel", button_style="primary")
         start_button.on_click(self._start_tunnel)
 
         display(start_button, self.output_widget)
+
+    def _is_tunnel_running(self) -> bool:
+        """Check if tunnel process is currently running for this port."""
+        try:
+            if self.port:
+                get_ipython().run_cell_magic("bash", "", f'pgrep -f "node tunnel.js {self.port}"')
+            else:
+                get_ipython().run_cell_magic("bash", "", 'pgrep -f "node tunnel.js"')
+            return True  # If pgrep finds a process, it returns success
+        except subprocess.CalledProcessError:
+            return False  # If pgrep finds nothing, it returns non-zero exit code
+
+    def _get_existing_tunnel_url(self) -> str | None:
+        """Get tunnel URL from existing log file if tunnel is already running."""
+        if not self.port:
+            return None
+
+        tunnel_log_path = Path(f"./app/logs/tunnel_{self.port}.log")
+
+        if not tunnel_log_path.exists():
+            return None
+
+        try:
+            log_content = tunnel_log_path.read_text()
+            url_match = re.search(r"LINK: (https://.*\.trycloudflare\.com)", log_content)
+            return url_match.group(1) if url_match else None
+        except Exception:
+            return None
 
     def _poll_for_tunnel_url(self, log_path: str, timeout: int = 30) -> str | None:
         """Poll the log file for the tunnel URL with timeout."""
@@ -174,9 +234,26 @@ class StartTunnelBtn:
                 self.output_widget.append_stderr("\n❌ No port specified. Cannot start tunnel.")
                 return
 
+            # Check if already running
+            if self.is_running or self._is_tunnel_running():
+                # Try to get the current tunnel URL
+                current_url = self._get_existing_tunnel_url()
+                if current_url:
+                    self.output_widget.append_stdout(
+                        f"\n⚠️ Tunnel for port {self.port} is already running!\n"
+                        f"🔗 Tunnel URL: {current_url}"
+                    )
+                else:
+                    self.output_widget.append_stdout(
+                        f"\n⚠️ Tunnel for port {self.port} is already running!"
+                    )
+                self.is_running = True  # Update state in case it was detected via process check
+                return
+
             self.output_widget.append_stdout(
                 f"\n🚇 Starting Cloudflare tunnel for port {self.port}..."
             )
+            self.is_running = True  # Set state before starting
 
             tunnel_log_path = f"./app/logs/tunnel_{self.port}.log"
 
@@ -200,6 +277,7 @@ class StartTunnelBtn:
 
             except subprocess.CalledProcessError as e:
                 self.output_widget.append_stderr(f"\n❌ An error occurred: {e}")
+                self.is_running = False  # Reset state on failure
 
 
 class StopTunnelBtn:
@@ -248,12 +326,19 @@ class StreamlitControlBtn:
 
         # Configure buttons to use methods from existing classes
         start_button.on_click(self.start_app._start_streamlit)
-        stop_button.on_click(self.stop_app._stop_streamlit)
+        stop_button.on_click(self._stop_streamlit_wrapper)
 
         # Create an HBox to place buttons side by side
         buttons = HBox([start_button, stop_button])
 
         display(buttons, self.output_widget)
+
+    def _stop_streamlit_wrapper(self, btn):
+        """Wrapper to coordinate state between start and stop buttons."""
+        # Call the original stop method
+        self.stop_app._stop_streamlit(btn)
+        # Reset the start button's running state
+        self.start_app.is_running = False
 
 
 class TunnelControlBtn:
@@ -274,9 +359,16 @@ class TunnelControlBtn:
 
         # Configure buttons to use methods from tunnel classes
         start_button.on_click(self.start_tunnel._start_tunnel)
-        stop_button.on_click(self.stop_tunnel._stop_tunnel)
+        stop_button.on_click(self._stop_tunnel_wrapper)
 
         # Create an HBox to place buttons side by side
         buttons = HBox([start_button, stop_button])
 
         display(buttons, self.output_widget)
+
+    def _stop_tunnel_wrapper(self, btn):
+        """Wrapper to coordinate state between start and stop buttons."""
+        # Call the original stop method
+        self.stop_tunnel._stop_tunnel(btn)
+        # Reset the start button's running state
+        self.start_tunnel.is_running = False
