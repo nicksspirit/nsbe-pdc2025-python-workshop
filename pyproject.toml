@@ -17,7 +17,6 @@ dependencies = [
     "requests>=2.32.5",
     "requests-cache>=1.2.1",
     "seaborn>=0.13.2",
-    "selenium>=4.35.0",
     "streamlit>=1.28.0",
     "pydantic-ai>=0.7.0",
     "google-genai>=1.31.0",
@@ -51,8 +50,3 @@ members = ["workshoplib"]
 [tool.mypy]
 python_version = "3.12"
 python_executable = "./.venv/bin/python"
-
-# [[tool.mypy.overrides]]
-# module = [
-# ]
-# ignore_missing_imports = true
