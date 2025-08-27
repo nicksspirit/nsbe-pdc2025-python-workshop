@@ -1,11 +1,12 @@
 [project]
 name = "nsbe-pdc2025-python-workshop"
 version = "0.1.0"
-description = "Add your description here"
+description = "NSBE PDC 2025 Python Workshop - Data, Scraping, Dashboards, and AI Agents"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
     "beautifulsoup4>=4.13.4",
+    "jinja2>=3.1.6",
     "matplotlib>=3.10.5",
     "numpy>=2.3.2",
     "openpyxl>=3.1.5",
@@ -14,16 +15,38 @@ dependencies = [
     "playwright>=1.54.0",
     "pyarrow>=21.0.0",
     "requests>=2.32.5",
+    "requests-cache>=1.2.1",
     "seaborn>=0.13.2",
-    "selenium>=4.35.0",
+    "streamlit>=1.28.0",
+    "pydantic-ai>=0.7.0",
+    "google-genai>=1.31.0",
+    "fpdf2>=2.5.0",
+    "ipywidgets>=8.1.7",
+    "python-dotenv>=1.1.1",
+    "workshoplib",
 ]
 
 [dependency-groups]
 dev = [
     "ipykernel>=6.30.1",
     "jupytext>=1.17.2",
+    "pandas-stubs>=2.3.0.250703",
+    "watchdog>=6.0.0",
 ]
+
+[tool.ruff]
+line-length = 100
 
 [tool.jupytext]
 notebook_metadata_filter = "-kernelspec,-jupytext.text_representation.jupytext_version"
 hide_notebook_metadata=true
+
+[tool.uv.sources]
+workshoplib = { workspace = true }
+
+[tool.uv.workspace]
+members = ["workshoplib"]
+
+[tool.mypy]
+python_version = "3.12"
+python_executable = "./.venv/bin/python"
