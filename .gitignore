@@ -6,6 +6,7 @@ dist/
 wheels/
 *.egg-info
 *.sqlite
+*.mypy_cache/
 
 # Nodejs
 node_modules/
