@@ -1,0 +1,17 @@
+{
+    "jupyter.widgetScriptSources": [
+        "jsdelivr.com",
+        "unpkg.com"
+    ],
+    "mypy-type-checker.preferDaemon": true,
+    "mypy-type-checker.args": [
+        "--config-file=./pyproject.toml"
+    ],
+    "python.analysis.extraPaths": [
+        "./workshoplib/src"
+    ],
+    // "mypy-type-checker.importStrategy": "fromEnvironment",
+    // "mypy-type-checker.interpreter": [
+    //     "${workspaceFolder}/.venv/bin/python"
+    // ],
+}
