@@ -2,9 +2,18 @@ import os
 from typing import Any
 
 import pandas as pd
+from pathlib import Path
 from pydantic_ai import Agent
 from pydantic_ai.models.google import GoogleModel
 from pydantic_ai.providers.google import GoogleProvider
+
+BASE_DIR = Path(__file__).resolve().parent
+ENV_PATH = BASE_DIR.parent / ".env"
+
+from dotenv import load_dotenv
+
+load_dotenv(ENV_PATH)  # Load environment variables from .env file if present
+
 
 # Set up the AI model for our tools
 # Note: You'll need to set your Google API key as an environment variable
@@ -14,8 +23,6 @@ model = GoogleModel("gemini-2.5-flash")
 
 # Create our agent instance
 agent = Agent(model=model)
-
-# <START> EXTRACT SKILLS
 
 
 def extract_skills_from_resume(resume_text: str, top_n: int = 10) -> list[str]:
@@ -61,11 +68,6 @@ def extract_skills_from_resume(resume_text: str, top_n: int = 10) -> list[str]:
     unique_skills = set(skill.lower() for skill in skills)
 
     return list(unique_skills)[:top_n]  # Return top N skills
-
-
-# <END> EXTRACT SKILLS
-
-# <START> JOB MATCHING
 
 
 def find_best_job_match(skills: list[str], jobs_df: pd.DataFrame) -> dict[str, Any]:
@@ -183,11 +185,6 @@ def calculate_job_score(job: pd.Series, skills: list[str]) -> dict[str, Any]:
     return {"score": score, "matched_skills": matched_skills}
 
 
-# <END> JOB MATCHING
-
-# <START> ADDITIONAL TOOLS
-
-
 def get_skill_statistics(skills: list[str], jobs_df: pd.DataFrame) -> dict[str, Any]:
     """
     Analyze how common each skill is in the job market.
@@ -296,11 +293,6 @@ def find_alternative_matches(
     return job_scores[:top_n]
 
 
-# <END> ADDITIONAL TOOLS
-
-# <START> Error Handling
-
-
 def validate_resume_text(resume_text: str) -> dict[str, Any]:
     """
     Validate that resume text is suitable for processing.
@@ -402,6 +394,3 @@ def safe_extract_skills(resume_text: str) -> dict[str, Any]:
             "issues": validation["issues"] + [f"Processing error: {str(e)}"],
             "warnings": validation["warnings"],
         }
-
-
-# <END> ADDITIONAL TOOLS

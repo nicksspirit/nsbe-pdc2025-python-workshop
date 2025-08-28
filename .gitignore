@@ -32,3 +32,4 @@ npm-debug.log
 !**/logs/.gitkeep
 **/app/*_app.py
 *.env
+*.md

@@ -9,5 +9,5 @@
     ],
     "python.analysis.extraPaths": [
         "./workshoplib/src"
-    ],
+    ]
 }
