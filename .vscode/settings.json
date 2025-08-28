@@ -9,9 +9,5 @@
     ],
     "python.analysis.extraPaths": [
         "./workshoplib/src"
-    ],
-    // "mypy-type-checker.importStrategy": "fromEnvironment",
-    // "mypy-type-checker.interpreter": [
-    //     "${workspaceFolder}/.venv/bin/python"
-    // ],
+    ]
 }
